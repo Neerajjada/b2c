@@ -14,22 +14,6 @@ jobs:
       - name: Replace Variables in Policy Files
         run: >
           mkdir -p build
-<<<<<<< HEAD
-          # Normalize line endings in dev.config for compatibility
-          sed -i 's/\r//' src/configuration/dev.config
-
-          # Replace variables in XML files located in the 'policies' folder
-          while IFS= read -r line || [ -n "$line" ]; do
-            if [[ ! "$line" =~ : ]]; then continue; fi
-            IFS=':' read -ra KV <<< "$line"
-            key=$(echo "${KV[0]}" | xargs)
-            value=$(echo "${KV[1]}" | xargs)
-            echo "Replacing {{$key}} with $value"
-            find src/policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
-          done < src/configuration/dev.config
-
-          # Copy updated files to the build directory
-=======
             # Normalize line endings in dev.config for compatibility
           sed -i 's/\r//' src/configuration/dev.config
             # Replace variables in XML files located in the 'Policies' folder
