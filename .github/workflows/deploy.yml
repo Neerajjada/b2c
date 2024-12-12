@@ -33,7 +33,7 @@ jobs:
       - name: Debug Policies
         run: |
           echo "Updated Policies:"
-          cat ./build/*.xml
-          ls -alrt ./build
+          cat ./build/src/policies/*.xml
+          ls -alrt ./build/src/policies
           pwd
         shell: bash
