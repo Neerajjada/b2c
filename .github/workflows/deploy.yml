@@ -15,7 +15,7 @@ jobs:
         run: >
           mkdir -p build
             # Normalize line endings in dev.config for compatibility
-          sed -i 's/\r//' configuration/dev.config
+          sed -i 's/\r//' src/configuration/dev.config
             # Replace variables in XML files located in the 'Policies' folder
           while IFS= read -r line || [ -n "$line" ]; do
           if [[ ! "$line" =~ : ]]; then continue; fi
@@ -26,7 +26,7 @@ jobs:
           find policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
           done < configuration/dev.config
              # Copy updated files to the build directory
-          cp policies/*.xml build/
+          cp src/policies/*.xml build/
       - name: Debug Policies
         run: |
           echo "Updated Policies:"
