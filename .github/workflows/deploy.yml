@@ -30,10 +30,11 @@ jobs:
             # Perform replacement in XML files
             find src/policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
           done < src/configuration/dev.config
+          cp src/policies/*.xml build/
       - name: Debug Policies
         run: |
           echo "Updated Policies:"
-          cat ./build/src/policies/*.xml
-          ls -alrt ./build/src/policies
+          cat ./build/*.xml
+          ls -alrt ./build
           pwd
         shell: bash
