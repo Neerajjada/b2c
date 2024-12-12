@@ -26,7 +26,6 @@ jobs:
           find policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
           done < configuration/dev.config
              # Copy updated files to the build directory
->>>>>>> 62f535d46f027c8d440353c6a32651f8090308e4
           cp src/policies/*.xml build/
       - name: Debug Policies
         run: |
