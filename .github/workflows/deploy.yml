@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v1
+      - name: Debug Config File
+        run: cat src/configuration/dev.config
       - name: Replace Variables in Policy Files
         run: >
           mkdir -p build
