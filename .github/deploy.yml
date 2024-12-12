@@ -1,24 +1,36 @@
-name: 'deploy'
+name: test 
+
 on:
   push:
     branches:
       - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    name: Deploy
+  build-and-deploy:
+    runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v3
-      - uses: judedaryl/ieftool-action/setup@v1
-      - uses: judedaryl/ieftool-action/build@v1
-        with:
-          source: src
-          output: build
-          config: ieftool.config
-      - uses: judedaryl/ieftool-action/deploy@v1
-        with:
-          folder: build
-          client-id: ${{ secrets.B2C_CLIENT_ID }}
-          client-secret: ${{ secrets.B2C_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.B2C_TENANT_ID }}
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Replace Variables in Policy Files
+        run: >
+          mkdir -p build
+            # Normalize line endings in dev.config for compatibility
+          sed -i 's/\r//' configuration/dev.config
+            # Replace variables in XML files located in the 'Policies' folder
+          while IFS= read -r line || [ -n "$line" ]; do
+          if [[ ! "$line" =~ : ]]; then continue; fi
+          IFS=':' read -ra KV <<< "$line"
+          key=$(echo "${KV[0]}" | xargs)
+          value=$(echo "${KV[1]}" | xargs)
+          echo "Replacing {{$key}} with $value"
+          find policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
+          done < configuration/dev.config
+             # Copy updated files to the build directory
+          cp policies/*.xml build/
+      - name: Debug Policies
+        run: |
+          echo "Updated Policies:"
+          cat ./build/*.xml
+          ls -alrt ./build
+          pwd
+        shell: bash
