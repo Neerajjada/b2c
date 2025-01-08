@@ -25,13 +25,18 @@ jobs:
 
       - name: Validate Policy Files
         run: |
-          echo "Validating encoding and content of policy files..."
-          for policy in ${{ env.policy_files }}; do
-            echo "Validating $policy..."
-            file -i "$policy" | grep -q "utf-8" || echo "Encoding issue in: $policy"
-            grep --color='auto' -P -n "[^\x00-\x7F]" "$policy" || echo "Validation complete."
-          done
-
+         echo "Validating encoding and content of policy files..."
+         # Loop through the files passed as input
+         for policy in ${{ env.policy_files }}; do
+           policy_path="policies/$policy"  # Prefix with 'policies/' folder
+           if [[ -f "$policy_path" ]]; then
+            echo "Validating $policy_path..."
+            file -i "$policy_path" | grep -q "utf-8" || echo "Encoding issue in: $policy_path"
+            grep --color='auto' -P -n "[^\x00-\x7F]" "$policy_path" || echo "Validation complete."
+           else
+            echo "File $policy_path not found!"
+           fi
+         done
       - name: Fix Encoding and Clean Policy Files
         run: |
           echo "Fixing encoding and cleaning up problematic characters..."
