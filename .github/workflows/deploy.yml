@@ -28,7 +28,7 @@ jobs:
          echo "Validating encoding and content of policy files..."
          # Loop through the files passed as input
          for policy in ${{ env.policy_files }}; do
-           policy_path="policies/$policy"  # Prefix with 'src/policies/' folder
+           policy_path="src/policies/$policy"  # Prefix with 'src/policies/' folder
            if [[ -f "$policy_path" ]]; then
             echo "Validating $policy_path..."
             file -i "$policy_path" | grep -q "utf-8" || echo "Encoding issue in: $policy_path"
