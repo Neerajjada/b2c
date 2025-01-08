@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy_new_policies:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, x64]
     environment: nj
     steps:
       - name: Checkout Repository
@@ -23,43 +23,65 @@ jobs:
           echo "Selected policy files: ${policy_files[@]}"
           echo "policy_files=${policy_files[@]}" >> $GITHUB_ENV
 
-      - name: Validate Policy Files
+      - name: Copy Input Policy Files to Build Folder
         run: |
-         echo "Validating encoding and content of policy files..."
-         # Loop through the files passed as input
-         for policy in ${{ env.policy_files }}; do
-           policy_path="src/policies/$policy"  # Prefix with 'src/policies/' folder
-           if [[ -f "$policy_path" ]]; then
-            echo "Validating $policy_path..."
-            file -i "$policy_path" | grep -q "utf-8" || echo "Encoding issue in: $policy_path"
-            grep --color='auto' -P -n "[^\x00-\x7F]" "$policy_path" || echo "Validation complete."
-           else
-            echo "File $policy_path not found!"
-           fi
-         done
-      - name: Fix Encoding and Clean Policy Files
-        run: |
-          echo "Fixing encoding and cleaning up problematic characters..."
+          mkdir -p build
           for policy in ${{ env.policy_files }}; do
-            iconv -f UTF-8 -t UTF-8 "$policy" -o "$policy.utf8"
-            mv "$policy.utf8" "$policy"
-            sed -i "s/’/'/g; s/“/\"/g; s/”/\"/g; s/\u2009/ /g; s/\xe9/e/g; s/\xe8/e/g; s/\xe0/a/g; s/\xe7/c/g;" "$policy"
+            policy_path="src/policies/$policy"  # Specify the path to the policy file
+            if [[ -f "$policy_path" ]]; then
+              cp "$policy_path" build/
+              echo "Copied $policy_path to build/."
+            else
+              echo "File $policy_path not found!"
+            fi
           done
 
       - name: Replace Variables in Policy Files
         run: |
-          mkdir -p build
-          sed -i 's/\r//' configuration/dit.config
+          sed -i 's/\r//' src/configurations/dit.config  # Specify the correct path to dit.config
           for policy in ${{ env.policy_files }}; do
-            echo "Processing $policy..."
-            while IFS= read -r line || [ -n "$line" ]; do
-              if [[ "$line" != *:* ]]; then continue; fi
-              IFS=':' read -r key value <<< "$line"
-              key=$(echo "$key" | xargs)
-              value=$(echo "$value" | xargs)
-              echo "Replacing key: $key, value: $value"
-              sed -i "s|{{$key}}|$value|g" "$policy"
-            done < configuration/dit.config
+            policy_path="build/$policy"  # Use the file from the build folder
+            if [[ -f "$policy_path" ]]; then
+              echo "Processing $policy_path..."
+              while IFS= read -r line || [ -n "$line" ]; do
+                if [[ "$line" != *:* ]]; then continue; fi
+                IFS=':' read -r key value <<< "$line"
+                key=$(echo "$key" | xargs)
+                value=$(echo "$value" | xargs)
+                echo "Replacing key: $key, value: $value"
+                sed -i "s|{{$key}}|$value|g" "$policy_path"
+              done < src/configurations/dit.config  # Specify the correct path to dit.config
+            else
+              echo "File $policy_path not found!"
+            fi
+          done
+
+      - name: Validate Policy Files
+        run: |
+          echo "Validating encoding and content of policy files..."
+          for policy in ${{ env.policy_files }}; do
+            policy_path="build/$policy"  # Use the file from the build folder
+            if [[ -f "$policy_path" ]]; then
+              echo "Validating $policy_path..."
+              file -i "$policy_path" | grep -q "utf-8" || echo "Encoding issue in: $policy_path"
+              grep --color='auto' -P -n "[^\x00-\x7F]" "$policy_path" || echo "Validation complete."
+            else
+              echo "File $policy_path not found!"
+            fi
+          done
+
+      - name: Fix Encoding and Clean Policy Files
+        run: |
+          echo "Fixing encoding and cleaning up problematic characters..."
+          for policy in ${{ env.policy_files }}; do
+            policy_path="build/$policy"  # Use the file from the build folder
+            if [[ -f "$policy_path" ]]; then
+              iconv -f UTF-8 -t UTF-8 "$policy_path" -o "$policy_path.utf8"
+              mv "$policy_path.utf8" "$policy_path"
+              sed -i "s/’/'/g; s/“/\"/g; s/”/\"/g; s/\u2009/ /g; s/\xe9/e/g; s/\xe8/e/g; s/\xe0/a/g; s/\xe7/c/g;" "$policy_path"
+            else
+              echo "File $policy_path not found!"
+            fi
           done
 
       - name: Copy Specified Policy Files to Temp
