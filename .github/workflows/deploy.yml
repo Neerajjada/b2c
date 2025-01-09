@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       policy_file:
-        description: 'The name of the policy file to deploy'
+        description: 'Enter the policy files to add, separated by commas'
         required: true
 
 jobs:
