@@ -51,7 +51,10 @@ jobs:
     - name: Copy Specified Policy File to Temp
       run: |
         mkdir -p build
-        cp policies/${{ github.event.inputs.policy_file }} build/
+          # Split the comma-separated policy files and copy each one
+        for policy_file in $(echo ${{ github.event.inputs.policy_file }} | tr ',' '\n'); do
+          cp "policies/$policy_file" build/
+        done
         ls -alrt ./build
         cat ./build/*.xml
         pwd
