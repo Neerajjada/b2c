@@ -1,53 +1,121 @@
-name: test 
+name: Add New Policies to Azure AD B2C
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      policy_files:
+        description: 'Enter the policy files to add, separated by commas'
+        required: true
 
 jobs:
-  build-and-deploy:
+  deploy_new_policies:
     runs-on: ubuntu-latest
+    environment: nj
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v1
-      - name: Replace Variables in Policy Files
-        run: >
-          mkdir -p build
-<<<<<<< HEAD
-          # Normalize line endings in dev.config for compatibility
-          sed -i 's/\r//' src/configuration/dev.config
 
-          # Replace variables in XML files located in the 'policies' folder
-          while IFS= read -r line || [ -n "$line" ]; do
-            if [[ ! "$line" =~ : ]]; then continue; fi
-            IFS=':' read -ra KV <<< "$line"
-            key=$(echo "${KV[0]}" | xargs)
-            value=$(echo "${KV[1]}" | xargs)
-            echo "Replacing {{$key}} with $value"
-            find src/policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
-          done < src/configuration/dev.config
-
-          # Copy updated files to the build directory
-=======
-            # Normalize line endings in dev.config for compatibility
-          sed -i 's/\r//' src/configuration/dev.config
-            # Replace variables in XML files located in the 'Policies' folder
-          while IFS= read -r line || [ -n "$line" ]; do
-          if [[ ! "$line" =~ : ]]; then continue; fi
-          IFS=':' read -ra KV <<< "$line"
-          key=$(echo "${KV[0]}" | xargs)
-          value=$(echo "${KV[1]}" | xargs)
-          echo "Replacing {{$key}} with $value"
-          find policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
-          done < configuration/dev.config
-             # Copy updated files to the build directory
->>>>>>> 62f535d46f027c8d440353c6a32651f8090308e4
-          cp src/policies/*.xml build/
-      - name: Debug Policies
+      - name: Parse Policy Files Input
+        id: parse_input
         run: |
-          echo "Updated Policies:"
-          cat ./build/*.xml
+          # Extract the comma-separated list of policy files from the input
+          IFS=',' read -r -a policy_files <<< "${{ github.event.inputs.policy_files }}"
+          echo "Selected policy files: ${policy_files[@]}"
+          echo "policy_files=${policy_files[@]}" >> $GITHUB_ENV
+
+      - name: Copy Input Policy Files to Build Folder
+        run: |
+          mkdir -p build
+          for policy in ${{ env.policy_files }}; do
+            policy_path="src/policies/$policy"  # Specify the path to the policy file
+            if [[ -f "$policy_path" ]]; then
+              cp "$policy_path" build/
+              echo "Copied $policy_path to build/."
+            else
+              echo "File $policy_path not found!"
+            fi
+          done
+
+      - name: Replace Variables in Policy Files
+        run: |
+          sed -i 's/\r//' src/configurations/dit.config  # Specify the correct path to dit.config
+          for policy in ${{ env.policy_files }}; do
+            policy_path="build/$policy"  # Use the file from the build folder
+            if [[ -f "$policy_path" ]]; then
+              echo "Processing $policy_path..."
+              while IFS= read -r line || [ -n "$line" ]; do
+                if [[ "$line" != *:* ]]; then continue; fi
+                IFS=':' read -r key value <<< "$line"
+                key=$(echo "$key" | xargs)
+                value=$(echo "$value" | xargs)
+                echo "Replacing key: $key, value: $value"
+                sed -i "s|{{$key}}|$value|g" "$policy_path"
+              done < src/configurations/dit.config  # Specify the correct path to dit.config
+            else
+              echo "File $policy_path not found!"
+            fi
+          done
+
+      - name: Validate Policy Files
+        run: |
+          echo "Validating encoding and content of policy files..."
+          for policy in ${{ env.policy_files }}; do
+            policy_path="build/$policy"  # Use the file from the build folder
+            if [[ -f "$policy_path" ]]; then
+              echo "Validating $policy_path..."
+              file -i "$policy_path" | grep -q "utf-8" || echo "Encoding issue in: $policy_path"
+              grep --color='auto' -P -n "[^\x00-\x7F]" "$policy_path" || echo "Validation complete."
+            else
+              echo "File $policy_path not found!"
+            fi
+          done
+
+      - name: Fix Encoding and Clean Policy Files
+        run: |
+          echo "Fixing encoding and cleaning up problematic characters..."
+          for policy in ${{ env.policy_files }}; do
+            policy_path="build/$policy"  # Use the file from the build folder
+            if [[ -f "$policy_path" ]]; then
+              iconv -f UTF-8 -t UTF-8 "$policy_path" -o "$policy_path.utf8"
+              mv "$policy_path.utf8" "$policy_path"
+              sed -i "s/’/'/g; s/“/\"/g; s/”/\"/g; s/\u2009/ /g; s/\xe9/e/g; s/\xe8/e/g; s/\xe0/a/g; s/\xe7/c/g;" "$policy_path"
+            else
+              echo "File $policy_path not found!"
+            fi
+          done
+
+      - name: Copy Specified Policy Files to Temp
+        run: |
+          mkdir -p build
+          for policy in ${{ env.policy_files }}; do
+            cp "$policy" build/
+          done
           ls -alrt ./build
+          cat ./build/*.xml
           pwd
-        shell: bash
+          shell: bash
+
+      - name: Deploy New Policies to Azure AD B2C (POST)
+        env:
+          B2C_TENANT: ${{ secrets.B2C_TENANT_ID }}
+          B2C_CLIENT_ID: ${{ secrets.B2C_CLIENT_ID }}
+          B2C_CLIENT_SECRET: ${{ secrets.B2C_CLIENT_SECRET }}
+        run: |
+          az login --service-principal \
+            -u $B2C_CLIENT_ID \
+            -p $B2C_CLIENT_SECRET \
+            --tenant $B2C_TENANT \
+            --allow-no-subscriptions > /dev/null
+          for policy in ${{ env.policy_files }}; do
+            policyName=$(basename "$policy" .xml)
+            echo "Deploying $policyName..."
+            if az rest --method post \
+              --uri "https://graph.microsoft.com/beta/trustFramework/policies" \
+              --headers "Content-Type=application/xml" \
+              --body "$(iconv -f UTF-8 -t UTF-8 "$policy" | tee /dev/tty)" ; then
+              echo "Successfully deployed $policyName."
+            else
+              echo "Failed to deploy $policyName. Skipping..."
+              continue
+            fi
+          done
