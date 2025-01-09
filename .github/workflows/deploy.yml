@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy_new_policies:
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
     environment: nj
     steps:
       - name: Checkout Repository
