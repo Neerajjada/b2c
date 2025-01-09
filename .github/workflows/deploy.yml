@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
     environment: nbrs-dit
 
     steps:
