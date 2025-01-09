@@ -54,6 +54,8 @@ jobs:
           cp "policies/$policy_file" build/
         done
         ls -alrt ./build
-        cat ./build/*.xml
-        pwd
+          for file in ./build/*.xml; do
+            cat "$file"
+            echo -e "\n\n" 
+          done
       shell: bash
