@@ -46,7 +46,7 @@ jobs:
         continue
         fi
         find policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
-        done < configuration/dit.config
+        done < configuration/dev.config
 
     - name: Copy Specified Policy File to Temp
       run: |
