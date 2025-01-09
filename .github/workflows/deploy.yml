@@ -41,10 +41,8 @@ jobs:
         IFS=':' read -r key value <<< "$line"
         key=$(echo "$key" | xargs)
         value=$(echo "$value" | xargs)
-        echo "Replacing key: $key, value: $value"
-        if [[ -z "$key" || -z "$value" ]]; then
-        continue
-        fi
+        echo "Replacing {{$key}} with $value in all policy files..."
+        
         find policies -type f -name "*.xml" -exec sed -i "s|{{$key}}|$value|g" {} \;
         done < configuration/dev.config
 
