@@ -32,7 +32,7 @@ jobs:
       run: |
         mkdir -p build
         # Normalize line endings in dit.config for compatibility
-        sed -i 's/\r//' configuration/dit.config
+        sed -i 's/\r//' configuration/dev.config
         # Replace variables in XML files located in the 'Policies' folder
         while IFS= read -r line || [ -n "$line" ]; do
         if [[ "$line" != *:* ]]; then
